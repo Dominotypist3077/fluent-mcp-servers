@@ -13,9 +13,10 @@ Connect your AI agents (Claude, Cursor, Codex, Windsurf) to FluentCRM, FluentCar
 | [fluent-boards-mcp](./fluent-boards-mcp) | Fluent Boards | 30 | Ready |
 | [fluent-community-mcp](./fluent-community-mcp) | Fluent Community | 30 | Ready |
 | [fluent-affiliate-mcp](./fluent-affiliate-mcp) | FluentAffiliate | 24 | Ready |
-| **Total** | | **175** | |
+| [fluentcart-mcp](https://github.com/vcode-sh/fchub-plugins) | FluentCart | 279 | By [vcode.sh](https://fchub.co/fluentcart-mcp) |
+| **Total (full ecosystem)** | | **454** | |
 
-**Note**: For FluentCart, we recommend the excellent [fluentcart-mcp](https://github.com/vcode-sh/fchub-plugins) by vcode.sh (279 tools).
+**Note**: We didn't build a FluentCart MCP because [vcode.sh](https://fchub.co) already built an excellent one with 279 tools and dynamic mode support. Install it with: `npx -y fluentcart-mcp`
 
 ## Quick Start
 
