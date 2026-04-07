@@ -1,0 +1,187 @@
+import { randomUUID } from 'node:crypto'
+import type { ResolvedConfig } from '../config/types.js'
+import { errorFromStatus, FluentCrmApiError } from './errors.js'
+
+export interface ApiResponse<T = unknown> {
+	data: T
+	status: number
+}
+
+const DEFAULT_TIMEOUT = 30_000
+
+function buildUrl(base: string, path: string, params?: Record<string, unknown>): URL {
+	const url = new URL(`${base}${path}`)
+	if (params) {
+		for (const [key, value] of Object.entries(params)) {
+			if (value !== undefined && value !== null) {
+				url.searchParams.set(key, String(value))
+			}
+		}
+	}
+	return url
+}
+
+function parseJsonLenient(raw: string): unknown | undefined {
+	const trimmed = raw.trim()
+	if (!trimmed) return {}
+
+	try {
+		return JSON.parse(trimmed)
+	} catch {
+		// Some WordPress responses prepend HTML warnings before a JSON object.
+		// Try to recover trailing JSON payload to avoid false parse failures.
+		const trailingJson = trimmed.match(/(\{[\s\S]*\}|\[[\s\S]*\])\s*$/)
+		const candidate = trailingJson?.[1]
+		if (candidate) {
+			try {
+				return JSON.parse(candidate)
+			} catch {
+				// Fall through.
+			}
+		}
+	}
+
+	return undefined
+}
+
+async function readResponseText(response: Response): Promise<string> {
+	const maybeText = response as unknown as { text?: () => Promise<string> }
+	if (typeof maybeText.text === 'function') {
+		return maybeText.text()
+	}
+
+	const maybeJson = response as unknown as { json?: () => Promise<unknown> }
+	if (typeof maybeJson.json === 'function') {
+		const body = await maybeJson.json().catch(() => null)
+		return body == null ? '' : JSON.stringify(body)
+	}
+
+	return ''
+}
+
+function previewRaw(raw: string): string | null {
+	const compact = raw.trim().replace(/\s+/g, ' ')
+	if (!compact) return null
+	return compact.slice(0, 220)
+}
+
+async function handleErrorResponse(response: Response): Promise<never> {
+	const raw = await readResponseText(response)
+	const parsed = parseJsonLenient(raw)
+	const parsedObj =
+		parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : undefined
+	const message =
+		typeof parsedObj?.message === 'string'
+			? parsedObj.message
+			: raw.trim().startsWith('<')
+				? 'Received HTML instead of JSON'
+				: (previewRaw(raw) ?? response.statusText)
+	const detail = parsed ?? (previewRaw(raw) ? { raw_preview: previewRaw(raw) } : null)
+	throw errorFromStatus(response.status, message, detail)
+}
+
+async function parseSuccessBody<T>(response: Response, method: string, path: string): Promise<T> {
+	const raw = await readResponseText(response)
+	if (raw.trim().startsWith('<')) {
+		const recovered = parseJsonLenient(raw)
+		const recoveredObj =
+			recovered && typeof recovered === 'object'
+				? (recovered as Record<string, unknown>)
+				: undefined
+		const message =
+			typeof recoveredObj?.message === 'string'
+				? recoveredObj.message
+				: 'Received HTML instead of JSON'
+		throw new FluentCrmApiError('CONNECTION_ERROR', message, response.status, {
+			recovered,
+			raw_preview: previewRaw(raw),
+		})
+	}
+
+	const parsed = parseJsonLenient(raw)
+	if (parsed !== undefined) {
+		return parsed as T
+	}
+
+	throw new FluentCrmApiError(
+		'CONNECTION_ERROR',
+		`Expected JSON response but received non-JSON payload for ${method} ${path}`,
+		response.status,
+		{ raw_preview: previewRaw(raw) },
+	)
+}
+
+export function createClient(config: ResolvedConfig) {
+	const credentials = Buffer.from(`${config.username}:${config.appPassword}`).toString('base64')
+	const timeout = config.timeout ?? DEFAULT_TIMEOUT
+
+	const headers = {
+		Authorization: `Basic ${credentials}`,
+		'Content-Type': 'application/json',
+		Accept: 'application/json',
+	}
+
+	async function request<T = unknown>(
+		method: string,
+		path: string,
+		options?: {
+			body?: Record<string, unknown>
+			params?: Record<string, unknown>
+		},
+	): Promise<ApiResponse<T>> {
+		const url = buildUrl(config.apiBase, path, options?.params)
+
+		const controller = new AbortController()
+		const timer = setTimeout(() => controller.abort(), timeout)
+
+		try {
+			const response = await fetch(url.toString(), {
+				method,
+				headers: { ...headers, 'X-Request-Id': randomUUID() },
+				body: method !== 'GET' && options?.body ? JSON.stringify(options.body) : undefined,
+				signal: controller.signal,
+			})
+
+			if (!response.ok) {
+				await handleErrorResponse(response)
+			}
+
+			const data = await parseSuccessBody<T>(response, method, path)
+			return { data, status: response.status }
+		} catch (error) {
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				throw new FluentCrmApiError(
+					'TIMEOUT',
+					`Request timed out after ${timeout}ms: ${method} ${path}`,
+				)
+			}
+			if (error instanceof FluentCrmApiError) {
+				throw error
+			}
+			throw new FluentCrmApiError(
+				'CONNECTION_ERROR',
+				error instanceof Error ? error.message : String(error),
+			)
+		} finally {
+			clearTimeout(timer)
+		}
+	}
+
+	return {
+		request,
+
+		get: <T = unknown>(path: string, params?: Record<string, unknown>) =>
+			request<T>('GET', path, { params }),
+
+		post: <T = unknown>(path: string, body?: Record<string, unknown>) =>
+			request<T>('POST', path, { body }),
+
+		put: <T = unknown>(path: string, body?: Record<string, unknown>) =>
+			request<T>('PUT', path, { body }),
+
+		delete: <T = unknown>(path: string, params?: Record<string, unknown>) =>
+			request<T>('DELETE', path, { params }),
+	}
+}
+
+export type FluentCrmClient = ReturnType<typeof createClient>

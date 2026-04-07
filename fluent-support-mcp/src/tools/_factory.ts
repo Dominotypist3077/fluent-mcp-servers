@@ -1,0 +1,243 @@
+import type { z } from 'zod'
+import type { FluentSupportClient } from '../api/client.js'
+import { FluentSupportApiError } from '../api/errors.js'
+import { cached, invalidate } from '../cache.js'
+
+export interface ToolAnnotations {
+	readOnlyHint?: boolean
+	destructiveHint?: boolean
+	idempotentHint?: boolean
+	openWorldHint?: boolean
+}
+
+export interface ToolDefinition {
+	name: string
+	title: string
+	description: string
+	schema: z.ZodObject<z.ZodRawShape>
+	annotations: ToolAnnotations
+	handler: (input: Record<string, unknown>) => Promise<{
+		content: { type: 'text'; text: string }[]
+		isError?: boolean
+	}>
+}
+
+interface BaseToolConfig {
+	name: string
+	title: string
+	description: string
+	schema: z.ZodObject<z.ZodRawShape>
+	annotations?: Partial<ToolAnnotations>
+}
+
+interface EndpointToolConfig extends BaseToolConfig {
+	endpoint: string
+	transform?: (data: unknown) => unknown
+	cache?: { key: string; ttlMs: number }
+	/** Cache keys to invalidate on successful write (POST/PUT/DELETE). */
+	invalidates?: string[]
+}
+
+interface CustomToolConfig extends BaseToolConfig {
+	handler: (client: FluentSupportClient, input: Record<string, unknown>) => Promise<unknown>
+}
+
+export const MAX_RESPONSE_CHARS = 80_000
+
+function resolveEndpoint(
+	endpoint: string,
+	input: Record<string, unknown>,
+): { path: string; rest: Record<string, unknown> } {
+	const rest = { ...input }
+	const path = endpoint.replace(/:(\w+)/g, (_, key: string) => {
+		const value = rest[key]
+		delete rest[key]
+		return String(value ?? '')
+	})
+	if (path.includes('//') || path.endsWith('/')) {
+		throw new Error(`Missing required path parameter in ${endpoint}`)
+	}
+	return { path, rest }
+}
+
+function sliceToFit(arr: unknown[], budget: number): unknown[] {
+	const arrJson = JSON.stringify(arr)
+	const avgItemSize = arrJson.length / arr.length
+	let targetCount = Math.max(1, Math.floor(budget / avgItemSize))
+	let sliced = arr.slice(0, targetCount)
+	while (sliced.length > 1 && JSON.stringify(sliced).length > budget) {
+		targetCount = Math.max(1, Math.floor(targetCount * 0.75))
+		sliced = arr.slice(0, targetCount)
+	}
+	return sliced
+}
+
+function truncateObjectArray(
+	obj: Record<string, unknown>,
+	jsonLen: number,
+): Record<string, unknown> | null {
+	const arrayKey =
+		'data' in obj && Array.isArray(obj.data)
+			? 'data'
+			: 'items' in obj && Array.isArray(obj.items)
+				? 'items'
+				: 'tickets' in obj && Array.isArray(obj.tickets)
+					? 'tickets'
+					: 'customers' in obj && Array.isArray(obj.customers)
+						? 'customers'
+						: null
+	if (!arrayKey) return null
+	const arr = obj[arrayKey] as unknown[]
+	if (arr.length === 0) return null
+	const overhead = jsonLen - JSON.stringify(arr).length
+	const sliced = sliceToFit(arr, MAX_RESPONSE_CHARS * 0.85 - overhead)
+	return {
+		...obj,
+		[arrayKey]: sliced,
+		_truncated: true,
+		_total: arr.length,
+		_showing: sliced.length,
+	}
+}
+
+export function truncateResponse(data: unknown): unknown {
+	const json = JSON.stringify(data)
+	if (json.length <= MAX_RESPONSE_CHARS) return data
+
+	if (Array.isArray(data) && data.length > 0) {
+		const sliced = sliceToFit(data, MAX_RESPONSE_CHARS * 0.85)
+		return { _truncated: true, _total: data.length, _showing: sliced.length, items: sliced }
+	}
+
+	if (typeof data === 'object' && data !== null) {
+		const result = truncateObjectArray(data as Record<string, unknown>, json.length)
+		if (result) return result
+	}
+
+	return {
+		_truncated: true,
+		_chars: json.length,
+		_message:
+			'Response too large. Use filters, pagination, or more specific queries to reduce size.',
+	}
+}
+
+function formatSuccess(data: unknown) {
+	const truncated = truncateResponse(data)
+	return {
+		content: [{ type: 'text' as const, text: JSON.stringify(truncated) }],
+	}
+}
+
+function formatError(error: unknown) {
+	if (error instanceof FluentSupportApiError) {
+		let text = `Error [${error.code}]: ${error.message}`
+		if (error.detail !== undefined) {
+			const detailStr =
+				typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)
+			text += `: ${detailStr}`
+		}
+		return {
+			content: [{ type: 'text' as const, text }],
+			isError: true,
+		}
+	}
+	const message = error instanceof Error ? error.message : String(error)
+	return {
+		content: [{ type: 'text' as const, text: `Error: ${message}` }],
+		isError: true,
+	}
+}
+
+export function createTool(client: FluentSupportClient, config: CustomToolConfig): ToolDefinition {
+	return {
+		name: config.name,
+		title: config.title,
+		description: config.description,
+		schema: config.schema,
+		annotations: {
+			openWorldHint: true,
+			...config.annotations,
+		},
+		handler: async (input) => {
+			try {
+				const result = await config.handler(client, input)
+				return formatSuccess(result)
+			} catch (error) {
+				return formatError(error)
+			}
+		},
+	}
+}
+
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
+
+const METHOD_ANNOTATIONS: Record<HttpMethod, ToolAnnotations> = {
+	GET: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+	POST: { openWorldHint: true },
+	PUT: { idempotentHint: true, openWorldHint: true },
+	DELETE: { destructiveHint: true, openWorldHint: true },
+}
+
+function createEndpointTool(
+	client: FluentSupportClient,
+	method: HttpMethod,
+	config: EndpointToolConfig,
+): ToolDefinition {
+	return {
+		name: config.name,
+		title: config.title,
+		description: config.description,
+		schema: config.schema,
+		annotations: {
+			...METHOD_ANNOTATIONS[method],
+			...config.annotations,
+		},
+		handler: async (input) => {
+			try {
+				const { path, rest } = resolveEndpoint(config.endpoint, input)
+				const fetcher = async () => {
+					let response: { data: unknown }
+					switch (method) {
+						case 'GET':
+							response = await client.get(path, rest)
+							break
+						case 'POST':
+							response = await client.post(path, rest)
+							break
+						case 'PUT':
+							response = await client.put(path, rest)
+							break
+						case 'DELETE':
+							response = await client.delete(path, rest)
+							break
+					}
+					return config.transform ? config.transform(response.data) : response.data
+				}
+				const data = config.cache
+					? await cached(config.cache.key, config.cache.ttlMs, fetcher)
+					: await fetcher()
+				if (config.invalidates) {
+					for (const key of config.invalidates) invalidate(key)
+				}
+				return formatSuccess(data)
+			} catch (error) {
+				return formatError(error)
+			}
+		},
+	}
+}
+
+export const getTool = (client: FluentSupportClient, config: EndpointToolConfig): ToolDefinition =>
+	createEndpointTool(client, 'GET', config)
+
+export const postTool = (client: FluentSupportClient, config: EndpointToolConfig): ToolDefinition =>
+	createEndpointTool(client, 'POST', config)
+
+export const putTool = (client: FluentSupportClient, config: EndpointToolConfig): ToolDefinition =>
+	createEndpointTool(client, 'PUT', config)
+
+export const deleteTool = (
+	client: FluentSupportClient,
+	config: EndpointToolConfig,
+): ToolDefinition => createEndpointTool(client, 'DELETE', config)

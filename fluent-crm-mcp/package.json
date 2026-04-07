@@ -1,0 +1,50 @@
+{
+  "name": "fluent-crm-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for the FluentCRM REST API — AI-agent-friendly tools for managing contacts, tags, lists, campaigns, sequences, automations, templates, reports, and webhooks.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "fluent-crm-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "fluentcrm",
+    "wordpress",
+    "crm",
+    "email-marketing",
+    "contacts",
+    "campaigns",
+    "automations",
+    "ai",
+    "agent"
+  ],
+  "author": "Vocoding",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2"
+  }
+}

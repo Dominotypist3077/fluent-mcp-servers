@@ -1,0 +1,48 @@
+{
+  "name": "fluent-support-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for the Fluent Support REST API — AI-agent-friendly tools for managing tickets, customers, agents, workflows, and support analytics.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "fluent-support-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "fluent-support",
+    "wordpress",
+    "helpdesk",
+    "tickets",
+    "support",
+    "ai",
+    "agent"
+  ],
+  "author": "Vocoding",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2"
+  }
+}
